@@ -1,5 +1,8 @@
 env
+.venv
 steps.txt
 tmp
-models/
+models/*
 sample_project
+.env
+bin/llama/*

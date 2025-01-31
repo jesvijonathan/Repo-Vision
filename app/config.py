@@ -1,0 +1,1 @@
+target_project_path="../docs"
