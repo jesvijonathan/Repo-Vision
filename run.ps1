@@ -1,3 +1,20 @@
+
+Write-Host "Loading environment variables..."
+$skippedEnvVars = @()
+Get-Content .env | ForEach-Object {
+    $name, $value = $_ -split '=', 2
+    if ($value -and -not [System.Environment]::GetEnvironmentVariable($name, "Process")) {
+        [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
+    } else {
+        $skippedEnvVars += $name
+    }
+}
+if ($skippedEnvVars.Count -gt 0) {
+    Write-Host "Skipped environment variables: $($skippedEnvVars -join ', ')"
+} else {
+    Write-Host "No environment variables were skipped."
+}
+
 $pythonInstalled = Get-Command python -ErrorAction SilentlyContinue
 if ($pythonInstalled) {
     Write-Host "✔ Python already installed."
@@ -51,7 +68,8 @@ pip install -r requirements.txt
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 Write-Host "✔ Dependencies installed successfully."
 
-$modelsPath = "./models/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
+$model = $env:model
+$modelsPath = "./models/$model"
 if (-Not (Test-Path $modelsPath)) {
     Write-Host "Downloading models..."
     $modelsUrl = "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
@@ -63,23 +81,32 @@ if (-Not (Test-Path $modelsPath)) {
 $llamaServerPath = "./bin/llama/llama-server.exe"
 if (-Not (Test-Path $llamaServerPath)) {
     Write-Host "Downloading Llama cpp"
+
     $githubReleaseUrl = "https://github.com/ggerganov/llama.cpp/releases/download/b4595/llama-b4595-bin-win-cuda-cu12.4-x64.zip"
-    # if ($downloadLink) {
-    #     $destinationPath = "./bin/llama/"
-    #     Write-Host "Downloading from: $githubReleaseUrl"
-    #     Invoke-WebRequest -Uri $githubReleaseUrl -OutFile "$destinationPath/llama.zip"
-    #     Write-Host "Download completed to: $destinationPath"
-    #     # extract the zip file
-    #     Expand-Archive -Path "$destinationPath/llama.zip" -DestinationPath ./ -Force
-    #     Write-Host "Extracted to: $destinationPath"
-    # } 
-    else {
-        Write-Host "No matching file found."
-    }
+    $llamaZipPath = "$env:TEMP\llama-b4595-bin-win-cuda-cu12.4-x64.zip"
+    Invoke-WebRequest -Uri $githubReleaseUrl -OutFile $llamaZipPath
+    Expand-Archive -Path $llamaZipPath -DestinationPath "./bin/llama" -Force
+    Remove-Item $llamaZipPath
+    Write-Host "Llama cpp downloaded successfully."
+
+    # $githubReleaseUrl = "https://github.com/ggerganov/llama.cpp/releases/latest" # why are we doing this ? cuase it flags the zip as a potential virus
+    # Write-Host "Opening browser.., please download -bin-win-cuda-cu12.4-x64.zip and extract it into ./bin/llama"
+    # Start-Process $githubReleaseUrl
+    # Start-Process explorer -ArgumentList "$(Resolve-Path ./bin/llama)"
 } else {
     Write-Host "✔ Llama server present."
 }
 
+$llamaServerRunning = Get-Process -Name "llama-server" -ErrorAction SilentlyContinue
+if ($llamaServerRunning) {
+    Write-Host "✔ Llama server already running."
+} else {
+    Write-Host "Starting Llama server..."
+    Start-Process powershell -WindowStyle Minimized -ArgumentList "-NoExit", "-File", "./bin/start_llama_server.ps1"
+    Write-Host "Loading Llama server..."
+    Start-Sleep -Seconds 3
+}
+
 Write-Host "Running the application..."
-Set-Location ./app
-python main.py
+# Set-Location ./app
+# python ./app/main.py
