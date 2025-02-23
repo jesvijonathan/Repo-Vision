@@ -71,7 +71,8 @@ Write-Host "✔ Dependencies installed successfully."
 $model = $env:model
 $modelsPath = "./models/$model"
 if (-Not (Test-Path $modelsPath)) {
-    Write-Host "Downloading models..."
+    Write-Host "$modelsPath missing, using default 'DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf' model..."
+    [System.Environment]::SetEnvironmentVariable("model", "DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf", "Process")
     $modelsUrl = "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
     Invoke-WebRequest -Uri $modelsUrl -OutFile $modelsPath
 } else {
@@ -107,6 +108,6 @@ if ($llamaServerRunning) {
     Start-Sleep -Seconds 3
 }
 
-Write-Host "Running the application..."
+Write-Host "Starting app.."
 # Set-Location ./app
 # python ./app/main.py
